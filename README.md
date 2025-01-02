@@ -7,8 +7,9 @@
 
 Artifex is an AI-driven engineering tool that acts as a copilot designed to simplify CAD workflows by enabling natural language-driven design. With **Artifex**, you can describe your ideas in plain English, and it will translate them into complex 3D CAD models within FreeCAD. Built as a macro, Artifex leverages state-of-the-art APIs like OpenAI and Claude to provide real-time design assistance.
 
-![Artifex Demo](https://github.com/islamnurdin/Artifex/assets/demo.gif)  
-*Above: A live demo of Artifex in action*
+## Artifex in action:
+
+![Artifex Demo](assets/demo.gif)
 
 ---
 
