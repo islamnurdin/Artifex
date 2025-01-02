@@ -29,7 +29,7 @@ Artifex is an AI-driven engineering tool that acts as a copilot designed to simp
 2. **Clone the Repository**  
    Clone this repository to your local machine:
    ```bash
-   git clone https://github.com/your-username/Artifex.git
+   git clone https://github.com/islamnurdin/Artifex.git
    cd Artifex
    ```
 
