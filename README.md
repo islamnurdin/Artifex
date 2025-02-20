@@ -4,8 +4,9 @@
 [![FreeCAD](https://img.shields.io/badge/Powered%20by-FreeCAD-orange)](https://www.freecadweb.org/)
 [![OpenAI API](https://img.shields.io/badge/API-OpenAI-brightgreen)](https://openai.com/)
 [![Claude API](https://img.shields.io/badge/API-Claude-brightgreen)](https://www.anthropic.com/)
+[![Mistral AI API](https://img.shields.io/badge/API-Mistral%20AI-brightgreen)](https://mistral.ai/)
 
-Artifex is an AI-driven engineering tool that acts as a copilot designed to simplify CAD workflows by enabling natural language-driven design. With **Artifex**, you can describe your ideas in plain English, and it will translate them into complex 3D CAD models within FreeCAD. Built as a macro, Artifex leverages state-of-the-art APIs like OpenAI and Claude to provide real-time design assistance.
+Artifex is an AI-driven engineering tool that acts as a copilot designed to simplify CAD workflows by enabling natural language-driven design. With **Artifex**, you can describe your ideas in plain English, and it will translate them into complex 3D CAD models within FreeCAD. Built as a macro, Artifex leverages state-of-the-art APIs like OpenAI, Claude and Mistral AI to provide real-time design assistance.
 
 ## Artifex in action:
 
@@ -16,7 +17,7 @@ Artifex is an AI-driven engineering tool that acts as a copilot designed to simp
 ## ✨ Features
 - **Text-to-CAD**: Transform natural language descriptions into CAD models.
 - **Real-time AI Assistance**: Get instant feedback and suggestions for design improvements.
-- **Multi-API Support**: Compatible with OpenAI and Claude APIs.
+- **Multi-API Support**: Compatible with OpenAI, Claude and Mistral AI APIs.
 - **Open-Source and Extensible**: Built to encourage community contributions and enhancements.
 
 ---
@@ -37,16 +38,18 @@ Artifex is an AI-driven engineering tool that acts as a copilot designed to simp
    Obtain API keys for the required service:
    - OpenAI API: [Sign up here](https://openai.com/).
    - Claude API: [Sign up here](https://www.anthropic.com/).
+   - Mistral AI API: [Sign up here](https://mistral.ai/).
 
    Configure the keys as environment variables:
    ```bash
    api-key = "your-openai-key"
-   api-key = "your-claude-key"
+   OPENAI_API_KEY = "your-claude-key"
+   MISTRAL_API_KEY = "your-mistralai-key"
    ```
 
 4. **Load the Macro in FreeCAD**  
    - Open FreeCAD and navigate to `Macro > Macros...`.
-   - Load the `Artifex.FCMacro` file from the `src/` directory.
+   - Load the `Artifex-Anthropic.FCMacro`, `Artifex-OpenAI.FCMacro` or `Artifex-MistralAI.FCMacro` file from the `src/` directory.
    - Click **Run** to start using Artifex.
 
 ---
@@ -66,6 +69,7 @@ Artifex/
   src/                   # Macro source files
       Artifex_OpenAI.FCMacro
       Artifex_Claude.FCMacro
+      Artifex-MistralAI.FCMacro
   docs/                  # Documentation
   examples/              # Example input and output files
   README.md              # Project documentation
