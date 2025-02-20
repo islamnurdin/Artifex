@@ -1,0 +1,218 @@
+"""
+Artifex Macro - Powered by Mistral AI API
+======================================
+Artifex is an AI-powered text-to-CAD tool designed to streamline CAD workflows
+by enabling natural language-driven design. This macro integrates with the OpenAI
+API to provide intelligent CAD model generation.
+
+License
+-------
+This software is released under the MIT License. You are free to use, modify,
+and distribute this software, provided you include this license notice and give
+credit to the original author.
+
+How to Use
+----------
+1. Load this macro in FreeCAD.
+2. Configure your OpenAI API key as an environment variable:
+   - `export MISTRAL_API_KEY="your-API-key"`
+3. Run the macro in FreeCAD and interact via the chat interface.
+
+Credits
+-------
+- Artifex Development Team
+- Powered by Mistral AI API (https://mistralai.com/)
+
+DISCLAIMER: This software is provided "as is", without warranty of any kind.
+
+Copyright (c) 2025 Islam Nurdin
+Copyright (c) 2025 Adrian Przekwas
+"""
+
+from PySide import QtGui, QtCore
+import os
+import re
+import mistralai
+import FreeCAD, Part
+import FreeCADGui
+
+mistralai.api_key = os.environ["MISTRAL_API_KEY"]
+# Uncomment and set your Mistral AI API key here to overwrite the key stored in the environment variable
+# mistralai.api_key = 'your-API-key'
+
+class ChatDock(QtGui.QDockWidget):
+    def __init__(self, parent=None):
+        super(ChatDock, self).__init__("GenFab Copilot Chat", parent)
+        self.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
+
+        # Central widget
+        widget = QtGui.QWidget()
+        layout = QtGui.QVBoxLayout()
+
+        # Chat display
+        self.chat_display = QtGui.QTextEdit()
+        self.chat_display.setReadOnly(True)
+        layout.addWidget(self.chat_display)
+
+        # Input field
+        self.chat_input = QtGui.QLineEdit()
+        self.chat_input.returnPressed.connect(self.send_message)
+        layout.addWidget(self.chat_input)
+
+        widget.setLayout(layout)
+        self.setWidget(widget)
+        self.message_history = []
+        self.object_registry = {}
+
+    def get_object_state(self):
+        """Get the current state of all objects in the document"""
+        doc = FreeCAD.ActiveDocument
+        if not doc:
+            return []
+
+        object_states = []
+        for obj in doc.Objects:
+            state = {
+                'name': obj.Name,
+                'type': obj.TypeId,
+                'properties': {}
+            }
+
+            # Get basic properties
+            if hasattr(obj, 'Height'):
+                state['properties']['Height'] = obj.Height
+            if hasattr(obj, 'Radius'):
+                state['properties']['Radius'] = obj.Radius
+                state['properties']['Diameter'] = obj.Radius * 2
+
+            # Get placement
+            if hasattr(obj, 'Placement'):
+                pos = obj.Placement.Base
+                state['properties']['Position'] = f"({pos.x}, {pos.y}, {pos.z})"
+
+            # Get color
+            if hasattr(obj, 'ViewObject') and hasattr(obj.ViewObject, 'ShapeColor'):
+                color = obj.ViewObject.ShapeColor
+                state['properties']['Color'] = f"({color[0]}, {color[1]}, {color[2]})"
+
+            object_states.append(state)
+
+        return object_states
+
+    def build_system_message(self):
+        # Get current state of all objects
+        object_states = self.get_object_state()
+
+        # Build object descriptions
+        object_descriptions = []
+        for state in object_states:
+            props = [f"{k}: {v}" for k, v in state['properties'].items()]
+            desc = f"{state['name']} ({state['type']}):\n    " + "\n    ".join(props)
+            object_descriptions.append(desc)
+
+        system_message = (
+        # Modify prompt as you like
+        # Currently the prompt creates only basic 3D objects.
+            "You are a FreeCAD CAD assistant. Follow these rules when generating code:\n\n"
+
+            "1. CURRENT OBJECTS IN DOCUMENT:\n"
+            + ("\n".join(object_descriptions) if object_descriptions else "No objects yet") + "\n\n"
+
+            "2. OBJECT HANDLING RULES:\n"
+            "   - ALWAYS get existing objects first: obj = App.activeDocument().getObject('Name')\n"
+            "   - Only create new objects if getObject returns None\n"
+            "   - When modifying properties, preserve other properties unless explicitly asked to change them\n"
+            "   - For colors, always use float values (0.0 to 1.0): obj.ViewObject.ShapeColor = (r, g, b)\n"
+            "   - Position objects using: obj.Placement = App.Placement(App.Vector(x, y, z), App.Rotation())\n"
+            "   - For sphere/cylinder diameter, set the Radius property to diameter/2\n\n"
+
+            "3. COLOR VALUES:\n"
+            "   Red = (1.0, 0.0, 0.0)\n"
+            "   Green = (0.0, 1.0, 0.0)\n"
+            "   Blue = (0.0, 0.0, 1.0)\n\n"
+
+            "4. CODE STYLE:\n"
+            "   - Include proper error checking\n"
+            "   - Use clear variable names\n"
+            "   - Maintain existing object properties unless asked to change them\n"
+            "   - Always end with: App.activeDocument().recompute()\n\n"
+
+            "5. IMPORTANT:\n"
+            "   - Preserve existing objects and their properties\n"
+            "   - Only create new objects if they don't exist\n"
+            "   - Use exact float values for colors (0.0 instead of 0)\n"
+            "   - Maintain relative positions when modifying objects"
+        )
+        return system_message
+
+    def send_message(self):
+        try:
+            user_input = self.chat_input.text()
+            self.message_history.append(f"User: {user_input}")
+            self.chat_display.append(f"User: {user_input}")
+            self.chat_input.clear()
+
+            # Add context from previous messages
+            context = "\n".join(self.message_history[-6:])  # Last 3 exchanges
+
+            system_message = self.build_system_message()
+
+            with mistralai.Mistral(api_key=mistralai.api_key) as mistral:
+                response = mistral.chat.complete(
+                    # Feel free to use a different model https://docs.mistral.ai/getting-started/models/models_overview/
+                    model="mistral-large-latest",
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": f"Context of previous operations:\n{context}\n\nGenerate Python code to: {user_input}"}
+                    ],
+                    stream=False
+                )
+
+            response_text = response.choices[0].message.content.strip()
+            self.message_history.append(f"GenFab Copilot: {response_text}")
+            self.chat_display.append(f"GenFab Copilot: {response_text}")
+            
+            # Extract code block from the response text
+            code_block_pattern = re.compile(r"```python\s*(.*?)\s*```", re.DOTALL)
+            match = code_block_pattern.search(response_text)
+            if match:
+                code = match.group(1).strip()
+                self.execute_code(code)
+            else:
+                self.chat_display.append("Error: No valid code block found in the response.")
+
+        except Exception as e:
+            self.chat_display.append(f"Error in send_message: {str(e)}")
+
+    def execute_code(self, code):
+        try:
+            if FreeCAD.ActiveDocument is None:
+                FreeCAD.newDocument()
+    
+            code = code.strip()
+
+            # Update object registry
+            self.object_registry = {
+                obj.Name: obj for obj in FreeCAD.ActiveDocument.Objects
+            }
+
+            global_env = {
+                'App': FreeCAD,
+                'Gui': FreeCADGui,
+                'Part': Part,
+                'FreeCAD': FreeCAD,
+                'FreeCADGui': FreeCADGui
+            }
+            global_env.update(self.object_registry)
+
+            exec(code, global_env)
+            FreeCAD.ActiveDocument.recompute()
+            self.chat_display.append("Copilot: Modification applied successfully.")
+
+        except Exception as e:
+            self.chat_display.append(f"Error executing modification: {str(e)}")
+
+# Create and add the dock widget if it doesn't exist
+if not FreeCADGui.getMainWindow().findChild(QtGui.QDockWidget, "Copilot Chat"):
+    chat_dock = ChatDock(FreeCADGui.getMainWindow())
+    FreeCADGui.getMainWindow().addDockWidget(QtCore.Qt.RightDockWidgetArea, chat_dock)
